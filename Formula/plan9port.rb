@@ -7,10 +7,10 @@ class Plan9port < Formula
   head "https://github.com/9fans/plan9port.git"
 
   def install
+    FileUtils.remove_dir "mac", force: true
     system "./INSTALL", "-r", libexec
     libexec.install Dir["*"]
     bin.install_symlink libexec/"bin/9"
-    prefix.install Dir[libexec/"mac/*.app"]
   end
 
   def caveats

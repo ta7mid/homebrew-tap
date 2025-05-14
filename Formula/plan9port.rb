@@ -1,9 +1,9 @@
 class Plan9port < Formula
   desc "A port of many Plan 9 libraries and programs to Unix"
   homepage "https://9fans.github.io/plan9port/"
-  url "https://github.com/9fans/plan9port/archive/df9b195e.zip"
+  url "https://github.com/9fans/plan9port/archive/df9b195e.tar.gz"
   version "df9b195e"
-  sha256 "938f28c7b07f6d9c5fe982020cb5d006ba8a8d2b8e9a7706dfdafbc7b6b303f2"
+  sha256 "920232bc57c41b019e2254d67cbb332fe4dd5a5e90334a9174e8d0b51c4f0624"
   head "https://github.com/9fans/plan9port.git"
 
   def install

@@ -17,19 +17,18 @@ class Plan9port < Formula
     end
 
     # prepare
-    root = prefix/"plan9"
     # https://gitlab.archlinux.org/archlinux/packaging/packages/plan9port/-/blob/7045c67c217a4b27af666ac48fe9f4997b6c18cc/PKGBUILD#L47
     Dir["**/*"]
       .select { |path| File.file?(path) and File.foreach(path).any?{ |line| line["/usr/local/plan9"] } }
-      .each { |file| inreplace file, "/usr/local/plan9", root.to_s }
-    root.install Dir["*"]
+      .each { |file| inreplace file, "/usr/local/plan9", libexec.to_s }
+    libexec.install Dir["*"]
 
-    chdir root do
+    chdir libexec do
       # build
-      system "./INSTALL", "-r", root.to_s
+      system "./INSTALL", "-r", libexec.to_s
 
       # install
-      bin.install_symlink root/"bin/9"
+      bin.install_symlink libexec/"bin/9"
       cp "bin/9", bin/"plan9"
 
       # clean up
@@ -41,7 +40,7 @@ class Plan9port < Formula
   def caveats
     <<~EOS
       In order not to collide with system binaries, the Plan 9 binaries have
-      been installed to #{opt_prefix}/plan9/bin.
+      been installed to #{opt_libexec}/bin.
 
       To run the Plan 9 version of a command, simply call it through either
       `9` or `plan9`, which have been installed into the Homebrew prefix bin.

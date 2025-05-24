@@ -1,4 +1,4 @@
-class Ninebase < Formula
+class Suckless9base < Formula
   desc "Plan 9 userland tools"
   homepage "https://tools.suckless.org/9base/"
   url "https://dl.suckless.org/tools/9base-6.tar.gz"
@@ -6,8 +6,8 @@ class Ninebase < Formula
   license all_of: ["X11", "LPL-1.02"]
 
   keg_only <<~EOS
-    The 9base tools conflict with many standard Unix userland tools provided by
-    other Homebrew packages.
+    the 9base tools conflict with many standard Unix userland tools and tools
+    provided by other Homebrew packages
   EOS
 
   depends_on "make" => :build
@@ -19,11 +19,17 @@ class Ninebase < Formula
   # end
 
   def install
-    puts prefix
+    arch = "x86_64"
+    on_arm do
+      arch = "arm"
+    end
+
+    # https://gitlab.archlinux.org/archlinux/packaging/packages/9base/-/blob/7aaad73e5261545b02934dc80e44f4dd784243d5/PKGBUILD#L29
     inreplace "config.mk" do |text|
       text.gsub! "/usr/local/plan9", prefix
-      text.gsub! /^OBJTYPE.*$/, "OBJTYPE = arm"
-      text.gsub! "-static", "-shared"
+      text.gsub! /^OBJTYPE.*$/, "OBJTYPE = #{arch}"
+      text.gsub! /^CFLAGS.*$/, 'CFLAGS += -fcommon -Wno-implicit-function-declaration -I. -DPLAN9PORT -DPREFIX="\"${PREFIX}\""'
+      text.gsub! "-static", ""
     end
 
     system "make"

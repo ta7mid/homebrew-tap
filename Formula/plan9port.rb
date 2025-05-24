@@ -8,7 +8,7 @@ class Plan9port < Formula
   license "MIT"
 
   def install
-    # clean up
+    # remove cruft
     rm_rf ".hg/"
     rm_f Dir["**/.cvsignore"]
     rm_f [".hgignore", ".hgtags", "CONTRIBUTING.md", "CONTRIBUTORS"]
@@ -19,35 +19,64 @@ class Plan9port < Formula
     # prepare
     # https://gitlab.archlinux.org/archlinux/packaging/packages/plan9port/-/blob/7045c67c217a4b27af666ac48fe9f4997b6c18cc/PKGBUILD#L47
     Dir["**/*"]
-      .select { |path| File.file?(path) and File.foreach(path).any?{ |line| line["/usr/local/plan9"] } }
-      .each { |file| inreplace file, "/usr/local/plan9", libexec.to_s }
+      .select { |path|
+        File.file?(path) and File.foreach(path).any?{ |line| line.include? "/usr/local/plan9" }
+      }.each { |file| inreplace file, "/usr/local/plan9", libexec.to_s }
     libexec.install Dir["*"]
 
+    # build
     chdir libexec do
-      # build
       system "./INSTALL", "-r", libexec.to_s
-
-      # install
-      bin.install_symlink libexec/"bin/9"
-      cp "bin/9", bin/"plan9"
-
-      # clean up
-      rm_f ["INSTALL", "Makefile", "config", "configure", "install.log", "install.sum", "install.txt"]
-      prefix.install "CHANGES", "LICENSE", "README.md"
     end
+
+    # install
+    (libexec/"bin").children.each do |cmd|
+      bin.install_symlink cmd => "plan9-#{File.basename cmd}"
+    end
+    File.rename bin/"plan9-9", bin/"9"
+    (libexec/"man").glob("man*/*").each do |page|
+      dir = File.basename(File.dirname page)
+      linked_name = File.basename page
+      unless linked_name == "INDEX" or linked_name == "index.html"
+        linked_name = "plan9-#{linked_name}"
+      end
+      (man/dir).install_symlink page => linked_name
+    end
+    prefix.install libexec/"CHANGES", libexec/"LICENSE", libexec/"README.md"
+
+    # clean up
+    rm_f [
+      libexec/"INSTALL",
+      libexec/"Makefile",
+      libexec/"config",
+      libexec/"configure",
+      libexec/"install.log",
+      libexec/"install.sum",
+      libexec/"install.txt",
+    ]
   end
 
   def caveats
     <<~EOS
-      In order not to collide with system binaries, the Plan 9 binaries have
-      been installed to #{opt_libexec}/bin.
+      In order not to collide with system binaries, the Plan 9 binaries
+      have not been installed to the Homebrew prefix directory as is.
+      Instead, they have been installed into #{Formatter.url opt_libexec/"bin"}
+      and symlinked into the Homebrew prefix bin with `plan9-` prepended to
+      their names.  Likewise, the Plan 9 man pages have also been symlinked
+      into the Homebrew prefix with `plan9-`-prefixed names.
 
-      To run the Plan 9 version of a command, simply call it through either
-      `9` or `plan9`, which have been installed into the Homebrew prefix bin.
-      For example, to run Plan 9's `ls`, enter
-          # 9 ls
-      or
-          # plan9 ls
+      Several of the installed tools expect other Plan 9 binaries to be
+      available in PATH.  The `9` command can be used to adjust the PATH on
+      the fly and use the original names of the binaries.  Hence, to run the
+      Plan 9 version of a command, simply prefix it with `9 `, like so:
+        # 9 ls
+
+      If you want the unprefixed versions always available in your PATH, add
+      the following to your shell's startup file:
+
+        export PLAN9=#{Formatter.url opt_libexec}
+        export PATH="$PATH:$PLAN9/bin"
+        export MANPATH="$MANPATH:$PLAN9/man"
     EOS
   end
 

@@ -7,10 +7,6 @@ class Plan9port < Formula
   head "https://github.com/9fans/plan9port.git"
   license "MIT"
 
-  depends_on "findutils" => :build
-  depends_on "gnu-sed" => :build
-  depends_on "grep" => :build
-
   def install
     # clean up
     rm_rf ".hg/"
@@ -22,11 +18,10 @@ class Plan9port < Formula
 
     # prepare
     root = prefix/"plan9"
-    grep = Formula["grep"].opt_bin/"ggrep"
-    xargs = Formula["findutils"].opt_bin/"gxargs"
-    sed = Formula["gnu-sed"].opt_bin/"gsed"
     # https://gitlab.archlinux.org/archlinux/packaging/packages/plan9port/-/blob/7045c67c217a4b27af666ac48fe9f4997b6c18cc/PKGBUILD#L47
-    system("#{grep} --null -l -r /usr/local/plan9 | #{xargs} --null #{sed} -i 's!/usr/local/plan9!#{root.to_s}!g'")
+    Dir["**/*"]
+      .select { |path| File.file?(path) and File.foreach(path).any?{ |line| line["/usr/local/plan9"] } }
+      .each { |file| inreplace file, "/usr/local/plan9", root.to_s }
     root.install Dir["*"]
 
     chdir root do

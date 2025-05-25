@@ -12,9 +12,8 @@ class Plan9port < Formula
 
   def install
     # remove unnecessary files
-    rm [".gitignore", "CONTRIBUTING.md", "CONTRIBUTORS"]
-    rm_r ".github/"
-    rm_r "mac/" if OS.linux?
+    rm_r ".github"
+    rm [".gitignore", "CONTRIBUTING.md", "CONTRIBUTORS", "Makefile", "configure"]
 
     # update hardcoded install prefix
     # https://gitlab.archlinux.org/archlinux/packaging/packages/plan9port/-/blob/7045c67c217a4b27af666ac48fe9f4997b6c18cc/PKGBUILD#L47
@@ -33,7 +32,7 @@ class Plan9port < Formula
     bin.install_symlink libexec/"bin/9"
     libexec.glob("bin/**/*").select { |p| File.basename(p) != "9" && File.file?(p) }.each do |path|
       cmd = File.basename path
-      cmd = "p9-#{cmd}" unless cmd.include? '"' # `"` and `""` are kept as is
+      cmd = "p9-#{cmd}" unless cmd.include? '"' # keep `"` and `""` as is
       (bin/cmd).atomic_write <<~SH
         #!/bin/sh
 
@@ -58,6 +57,9 @@ class Plan9port < Formula
       (man/dir).install_symlink path => MANPAGE_INDEX_FILENAMES.include?(f) ? f : "p9-#{f}"
     end
 
+    # install macOS GUI `.app`s
+    (prefix/"Applications").install Dir["#{libexec}/mac/*.app"] if OS.mac?
+
     # install other files
     prefix.install [
       "CHANGES",
@@ -66,10 +68,9 @@ class Plan9port < Formula
     ].map { |f| libexec/f }
 
     # clean up leftover cruft
+    rm_r libexec/"mac"
     rm [
       "INSTALL",
-      "Makefile",
-      "configure",
       "install.log",
       "install.sum",
       "install.txt",

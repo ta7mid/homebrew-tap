@@ -7,6 +7,9 @@ class Plan9port < Formula
   license "MIT"
   head "https://github.com/9fans/plan9port.git", branch: "master"
 
+  DEFAULT_PREFIX = "/usr/local/plan9".freeze
+  MANPAGE_INDEX_FILENAMES = ["INDEX", "index.html"].freeze
+
   def install
     # remove cruft
     rm ["CONTRIBUTING.md", "CONTRIBUTORS"]
@@ -16,38 +19,40 @@ class Plan9port < Formula
     # https://gitlab.archlinux.org/archlinux/packaging/packages/plan9port/-/blob/7045c67c217a4b27af666ac48fe9f4997b6c18cc/PKGBUILD#L47
     Dir["**/*"]
       .select { |path| File.file?(path) }
-      .select { |file| File.foreach(file).any? { |line| line.include? "/usr/local/plan9" } }
-      .each { |file| inreplace file, "/usr/local/plan9", libexec.to_s }
+      .select { |file| File.foreach(file).any? { |line| line.include? DEFAULT_PREFIX } }
+      .each { |file| inreplace file, DEFAULT_PREFIX, libexec.to_s }
     libexec.install Dir["*"]
 
+    # build
     chdir libexec do
-      # build
       system "./INSTALL", "-r", libexec.to_s
-
-      # install
-      Dir["bin/*"].each do |cmd|
-        bin.install_symlink cmd => "plan9-#{File.basename cmd}"
-      end
-      mv bin/"plan9-9", bin/"9"
-      Dir["man/man*/*"].each do |page|
-        basename = File.basename page
-        index_basenames = ["INDEX", "index.html"]
-        dir = File.basename(File.dirname(page))
-        (man/dir).install_symlink page => "plan9-#{basename}" unless index_basenames.include?(basename)
-      end
-      prefix.install ["CHANGES", "LICENSE", "README.md"]
-
-      # clean up
-      rm %w[
-        INSTALL
-        Makefile
-        config
-        configure
-        install.log
-        install.sum
-        install.txt
-      ]
     end
+
+    # install
+    (libexec/"bin/").children.each do |path|
+      bin.install_symlink path => "plan9-#{File.basename path}"
+    end
+    mv bin/"plan9-9", bin/"9"
+    (libexec/"man").glob("man*/*").each do |path|
+      dir = File.basename(File.dirname(path))
+      f = File.basename path
+      (man/dir).install_symlink path => MANPAGE_INDEX_FILENAMES.include?(f) ? f : "plan9-#{f}"
+    end
+    prefix.install [
+      "CHANGES",
+      "LICENSE",
+      "README.md",
+    ].map { |f| libexec/f }
+
+    # clean up
+    rm [
+      "INSTALL",
+      "Makefile",
+      "configure",
+      "install.log",
+      "install.sum",
+      "install.txt",
+    ].map { |f| libexec/f }
   end
 
   def caveats

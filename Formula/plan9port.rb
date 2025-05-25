@@ -7,20 +7,21 @@ class Plan9port < Formula
   license "MIT"
   head "https://github.com/9fans/plan9port.git", branch: "master"
 
-  DEFAULT_PREFIX = "/usr/local/plan9".freeze
+  DEFAULT_INSTALL_PREFIX = "/usr/local/plan9".freeze
   MANPAGE_INDEX_FILENAMES = ["INDEX", "index.html"].freeze
 
   def install
-    # remove cruft
-    rm ["CONTRIBUTING.md", "CONTRIBUTORS"]
+    # remove unnecessary files
+    rm [".gitignore", "CONTRIBUTING.md", "CONTRIBUTORS"]
+    rm_r ".github/"
     rm_r "mac/" if OS.linux?
 
-    # prepare
+    # update hardcoded install prefix
     # https://gitlab.archlinux.org/archlinux/packaging/packages/plan9port/-/blob/7045c67c217a4b27af666ac48fe9f4997b6c18cc/PKGBUILD#L47
     Dir["**/*"]
       .select { |path| File.file?(path) }
-      .select { |file| File.foreach(file).any? { |line| line.include? DEFAULT_PREFIX } }
-      .each { |file| inreplace file, DEFAULT_PREFIX, libexec.to_s }
+      .select { |file| File.foreach(file).any? { |line| line.include? DEFAULT_INSTALL_PREFIX } }
+      .each { |file| inreplace file, DEFAULT_INSTALL_PREFIX, libexec.to_s }
     libexec.install Dir["*"]
 
     # build
@@ -28,23 +29,43 @@ class Plan9port < Formula
       system "./INSTALL", "-r", libexec.to_s
     end
 
-    # install
-    (libexec/"bin/").children.each do |path|
-      bin.install_symlink path => "plan9-#{File.basename path}"
+    # install exec scripts
+    bin.install_symlink libexec/"bin/9"
+    libexec.glob("bin/**/*").select { |p| File.basename(p) != "9" && File.file?(p) }.each do |path|
+      cmd = File.basename path
+      cmd = "p9-#{cmd}" unless cmd.include? '"' # `"` and `""` are kept as is
+      (bin/cmd).atomic_write <<~SH
+        #!/bin/sh
+
+        PLAN9=#{libexec} export PLAN9
+
+        case "$PATH" in
+        $PLAN9/bin:*)
+          ;;
+        *)
+          PATH="$PLAN9/bin:$PATH" export PATH
+          ;;
+        esac
+
+        exec '#{path}' "$@"
+      SH
     end
-    mv bin/"plan9-9", bin/"9"
-    (libexec/"man").glob("man*/*").each do |path|
+
+    # install man pages
+    libexec.glob("man/man*/*").each do |path|
       dir = File.basename(File.dirname(path))
       f = File.basename path
-      (man/dir).install_symlink path => MANPAGE_INDEX_FILENAMES.include?(f) ? f : "plan9-#{f}"
+      (man/dir).install_symlink path => MANPAGE_INDEX_FILENAMES.include?(f) ? f : "p9-#{f}"
     end
+
+    # install other files
     prefix.install [
       "CHANGES",
       "LICENSE",
       "README.md",
     ].map { |f| libexec/f }
 
-    # clean up
+    # clean up leftover cruft
     rm [
       "INSTALL",
       "Makefile",
@@ -58,11 +79,11 @@ class Plan9port < Formula
   def caveats
     <<~EOS
       In order not to collide with system binaries, the Plan 9 binaries have not
-      been installed to the Homebrew prefix directory as is.  Instead, they have
+      been installed to the Homebrew prefix directory as is, but instead have
       been installed into #{Formatter.url opt_libexec/"bin"}
-      and symlinked into the Homebrew prefix bin with `plan9-` prepended to
+      and symlinked into the Homebrew prefix bin with `p9-` prepended to
       their names.  Likewise, the Plan 9 man pages have also been symlinked into
-      the Homebrew prefix with `plan9-`-prefixed names.
+      the Homebrew man prefix with `p9-`-prefixed names.
 
       Several of the installed tools expect other Plan 9 binaries to be
       available in PATH.  The `9` command can be used to adjust the PATH on the
@@ -70,8 +91,8 @@ class Plan9port < Formula
       version of a command, simply prefix it with `9 `, like so:
         # 9 ls
 
-      If you want the unprefixed versions always available in your PATH, add
-      the following to your shell's startup file:
+      If instead you want the unprefixed versions always available in your PATH,
+      add the following to your shell's startup file:
 
         export PLAN9=#{Formatter.url opt_libexec}
         export PATH="$PATH:$PLAN9/bin"

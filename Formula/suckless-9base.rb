@@ -19,17 +19,13 @@ class Suckless9base < Formula
   # end
 
   def install
-    arch = "x86_64"
-    on_arm do
-      arch = "arm"
-    end
-
     # https://gitlab.archlinux.org/archlinux/packaging/packages/9base/-/blob/7aaad73e5261545b02934dc80e44f4dd784243d5/PKGBUILD#L29
-    inreplace "config.mk" do |text|
-      text.gsub! "/usr/local/plan9", prefix
-      text.gsub! /^OBJTYPE.*$/, "OBJTYPE = #{arch}"
-      text.gsub! /^CFLAGS.*$/, 'CFLAGS += -fcommon -Wno-implicit-function-declaration -I. -DPLAN9PORT -DPREFIX="\"${PREFIX}\""'
-      text.gsub! "-static", ""
+    inreplace "config.mk" do |s|
+      s.change_make_var! "PREFIX", prefix
+      s.change_make_var! "MANPREFIX", man
+      s.change_make_var! "OBJTYPE", Hardware::CPU.arm? ? "arm" : "x86_64"
+      s.change_make_var! "CFLAGS", '-fcommon -Wno-implicit-function-declaration -I. -DPLAN9PORT -DPREFIX="\"${PREFIX}\""'
+      s.gsub! "-static", ""
     end
 
     system "make"

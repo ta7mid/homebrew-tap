@@ -1,42 +1,51 @@
 class Plan9port < Formula
-  desc "Port of many Plan 9 libraries and programs to Unix"
+  desc "Port of many Plan 9 programs and libraries to Unix"
   homepage "https://9fans.github.io/plan9port/"
   url "https://github.com/9fans/plan9port/archive/refs/heads/master.tar.gz"
-  version "df9b195e"
-  sha256 "7c9eddf9506149e8683dbba7d13d08e2defa443ff402f1b591e813d3920cb2bb"
+  version "f39a2407"
+  sha256 "814a1aa814d49b6e1a64a3ade3f5ada1496338c30e977ebe8c60cd2e84e3ef06"
   license "MIT"
   head "https://github.com/9fans/plan9port.git", branch: "master"
 
-  DEFAULT_INSTALL_PREFIX = "/usr/local/plan9".freeze
-  MANPAGE_INDEX_FILENAMES = ["INDEX", "index.html"].freeze
+  def installdir
+    libexec
+  end
+
+  def opt_installdir
+    opt_libexec
+  end
 
   def install
-    # remove unnecessary files
+    # Remove unneeded files and directories
     rm_r ".github"
     rm [".gitignore", "CONTRIBUTING.md", "CONTRIBUTORS", "Makefile", "configure"]
 
-    # update hardcoded install prefix
+    # Replace hardcoded install prefix with `installdir`
     # https://gitlab.archlinux.org/archlinux/packaging/packages/plan9port/-/blob/7045c67c217a4b27af666ac48fe9f4997b6c18cc/PKGBUILD#L47
-    Dir["**/*"]
-      .select { |path| File.file?(path) }
-      .select { |file| File.foreach(file).any? { |line| line.include? DEFAULT_INSTALL_PREFIX } }
-      .each { |file| inreplace file, DEFAULT_INSTALL_PREFIX, libexec.to_s }
-    libexec.install Dir["*"]
-
-    # build
-    chdir libexec do
-      system "./INSTALL", "-r", libexec.to_s
+    buildpath.glob("**/*").select { |f| f.file? && !f.binary_executable? }.each do |f|
+      inreplace f, "/usr/local/plan9", installdir.to_s, audit_result: false
     end
 
-    # install exec scripts
-    bin.install_symlink libexec/"bin/9"
-    libexec.glob("bin/**/*").select { |p| File.basename(p) != "9" && File.file?(p) }.each do |path|
-      cmd = File.basename path
-      cmd = "p9-#{cmd}" unless cmd.include? '"' # keep `"` and `""` as is
-      (bin/cmd).atomic_write <<~SH
+    # Move everything to `installdir` and build install there
+    installdir.install buildpath.glob("*")
+    installdir.cd do |dir|
+      system "./INSTALL", "-r", dir.to_s
+    end
+
+    # The official `9` exec script is symlinked as is
+    bin.install_symlink installdir/"bin/9"
+
+    # For other commands, install wrapper exec scripts with `p9-` prepended to their names
+    commands = installdir.glob("bin/**/*")
+                         .reject { |f| f.directory? || f.basename == "9" }
+                         .select { |f| f.text_executable? || f.binary_executable? }
+    commands.each do |cmd|
+      script_name = cmd.basename.to_s
+      script_name.prepend "p9-" unless script_name.include?('"') # keep `"` and `""` as is
+      (bin/script_name).atomic_write <<~SH
         #!/bin/sh
 
-        PLAN9=#{libexec} export PLAN9
+        PLAN9=#{opt_installdir} export PLAN9
 
         case "$PATH" in
         $PLAN9/bin:*)
@@ -46,42 +55,32 @@ class Plan9port < Formula
           ;;
         esac
 
-        exec '#{path}' "$@"
+        exec '#{cmd}' "$@"
       SH
     end
 
-    # install man pages
-    libexec.glob("man/man*/*").each do |path|
-      dir = File.basename(File.dirname(path))
-      f = File.basename path
-      (man/dir).install_symlink path => MANPAGE_INDEX_FILENAMES.include?(f) ? f : "p9-#{f}"
+    # Symlink man pages as their `p9-`-prefixed names
+    installdir.glob("man/man*/*").each do |f|
+      link_name = f.basename.to_s
+      link_name.prepend "p9-" unless ["INDEX", "index.html"].include? link_name
+      (man/f.dirname.basename).install_symlink f => link_name
     end
 
-    # install macOS GUI `.app`s
-    (prefix/"Applications").install Dir["#{libexec}/mac/*.app"] if OS.mac?
+    # Move other installed files to appropriate locations
+    prefix.install installdir.glob("{CHANGES,LICENSE,README.md}")
+    (prefix/"Applications").install installdir.glob("mac/*.app") if OS.mac?
 
-    # install other files
-    prefix.install [
-      "CHANGES",
-      "LICENSE",
-      "README.md",
-    ].map { |f| libexec/f }
-
-    # clean up leftover cruft
-    rm_r libexec/"mac"
-    rm [
-      "INSTALL",
-      "install.log",
-      "install.sum",
-      "install.txt",
-    ].map { |f| libexec/f }
+    # Clean up leftovers and byproducts
+    rm_r installdir/"mac"
+    rm installdir/"INSTALL"
+    rm installdir.glob("install.{log,sum,txt}")
   end
 
   def caveats
     <<~EOS
       In order not to collide with system binaries, the Plan 9 binaries have not
       been installed to the Homebrew prefix directory as is, but instead have
-      been installed into #{Formatter.url opt_libexec/"bin"}
+      been installed into #{Formatter.url (opt_installdir/"bin").to_s}
       and symlinked into the Homebrew prefix bin with `p9-` prepended to
       their names.  Likewise, the Plan 9 man pages have also been symlinked into
       the Homebrew man prefix with `p9-`-prefixed names.
@@ -95,25 +94,32 @@ class Plan9port < Formula
       If instead you want the unprefixed versions always available in your PATH,
       add the following to your shell's startup file:
 
-        export PLAN9=#{Formatter.url opt_libexec}
+        export PLAN9=#{Formatter.url opt_installdir.to_s}
         export PATH="$PATH:$PLAN9/bin"
         export MANPATH="$MANPATH:$PLAN9/man"
     EOS
   end
 
   test do
-    (testpath/"test.c").write <<~C
+    (testpath/"test.c").write <<~'C'
       #include <u.h>
       #include <libc.h>
       #include <stdio.h>
 
       int main(void)
       {
-        return printf("Hello World\\n");
+        return printf("Hello World\n");
       }
     C
+
     system bin/"9", "9c", "test.c"
     system bin/"9", "9l", "-o", "test", "test.o"
+    assert_equal "Hello World\n", shell_output("./test", 1)
+
+    # Also test that the `p9-`-prefixed commands work
+    system bin/"p9-rm", "test.o", "test"
+    system bin/"p9-9c", "test.c"
+    system bin/"p9-9l", "-o", "test", "test.o"
     assert_equal "Hello World\n", shell_output("./test", 1)
   end
 end

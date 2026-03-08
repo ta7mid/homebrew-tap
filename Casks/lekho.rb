@@ -28,4 +28,8 @@ cask "lekho" do
     "~/Library/Caches/com.lekho.inputmethod.Lekho",
     "~/Library/WebKit/com.lekho.inputmethod.Lekho",
   ]
+
+  caveats do
+    logout
+  end
 end

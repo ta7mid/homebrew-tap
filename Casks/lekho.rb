@@ -3,7 +3,7 @@ cask "lekho" do
   sha256 "393b2aff5c4e3b1ca47f7a059630370345bdd88dbebc76ae7cee6082eb2581d0"
 
   url "https://github.com/ARahim3/Lekho/releases/download/v#{version}/Lekho-#{version}.dmg",
-      verified: "github.com/"
+      verified: "github.com/ARahim3/Lekho/"
   name "Lekho"
   desc "Bengali input method based on the Avro Phonetic layout"
   homepage "https://arahim3.github.io/Lekho/"

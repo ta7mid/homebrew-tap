@@ -1,9 +1,9 @@
 class Plan9port < Formula
   desc "Port of many Plan 9 programs and libraries to Unix"
   homepage "https://9fans.github.io/plan9port/"
-  url "https://github.com/9fans/plan9port/archive/f39a240.tar.gz"
-  version "2025.11.09-f39a240"
-  sha256 "29886507253eccd5c13d13c4e98b0d234e094b609fef00454a7d143d0405bb9f"
+  url "https://github.com/9fans/plan9port/archive/ae4fdf4.tar.gz"
+  version "2026.02.27-ae4fdf4"
+  sha256 "2423069d2be70ba426096c9eaa57884b5b0ce75edac3f7a62d6c1c2e77e67cb2"
   license "MIT"
   head "https://github.com/9fans/plan9port.git", branch: "master"
 

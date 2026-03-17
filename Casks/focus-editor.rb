@@ -3,10 +3,10 @@ cask "focus-editor" do
   sha256 "56883831e607892c050325e17b8b354fda69a538111bc2b84f7ad3b8bccb3db0"
 
   url "https://github.com/focus-editor/focus/releases/download/#{version}/focus-macOS.dmg",
-      verified: "github.com/focus-editor/focus"
+      verified: "github.com/focus-editor/focus/"
   name "Focus"
   desc "Simple and fast text editor"
-  homepage "https://focus-editor.dev"
+  homepage "https://focus-editor.dev/"
 
   livecheck do
     url :url

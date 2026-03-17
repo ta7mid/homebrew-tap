@@ -1,125 +1,96 @@
 class Plan9port < Formula
   desc "Port of many Plan 9 programs and libraries to Unix"
   homepage "https://9fans.github.io/plan9port/"
-  url "https://github.com/9fans/plan9port/archive/refs/heads/master.tar.gz"
-  version "f39a2407"
-  sha256 "814a1aa814d49b6e1a64a3ade3f5ada1496338c30e977ebe8c60cd2e84e3ef06"
+  url "https://github.com/9fans/plan9port/archive/f39a240.tar.gz"
+  version "2025.11.09-f39a240"
+  sha256 "29886507253eccd5c13d13c4e98b0d234e094b609fef00454a7d143d0405bb9f"
   license "MIT"
   head "https://github.com/9fans/plan9port.git", branch: "master"
 
-  def installdir
-    libexec
-  end
-
-  def opt_installdir
-    opt_libexec
-  end
-
   def install
-    # Remove unneeded files and directories
-    rm_r ".github"
-    rm [".gitignore", "CONTRIBUTING.md", "CONTRIBUTORS", "Makefile", "configure"]
+    prefix.install_metafiles
 
-    # Replace hardcoded install prefix with `installdir`
+    # Fix the hardcoded default install prefix in source files
     # https://gitlab.archlinux.org/archlinux/packaging/packages/plan9port/-/blob/7045c67c217a4b27af666ac48fe9f4997b6c18cc/PKGBUILD#L47
     buildpath.glob("**/*").select { |f| f.file? && !f.binary_executable? }.each do |f|
-      inreplace f, "/usr/local/plan9", installdir.to_s, audit_result: false
+      inreplace f, "/usr/local/plan9", libexec.to_s, audit_result: false
     end
 
-    # Move everything to `installdir` and build install there
-    installdir.install buildpath.glob("*")
-    installdir.cd do |dir|
-      system "./INSTALL", "-r", dir.to_s
-    end
+    # Build
+    system "./INSTALL", "-r", libexec.to_s
 
-    # The official `9` exec script is symlinked as is
-    bin.install_symlink installdir/"bin/9"
+    # Remove files and folders in buildpath that shouldn't be installed.
+    # These are used for developing or building plan9port, not useful for end users.
+    rm_r %w[
+      .github
+      dist
+      lib/git
+      mac
+      news
+      proto
+      src
+      unix
+    ]
+    rm %w[
+      .gitignore
+      CONTRIBUTING.md
+      CONTRIBUTORS
+      INSTALL
+      Makefile
+      configure
+      install.log
+      install.sum
+      install.txt
+    ]
+    rm buildpath.glob("**/.gitkeep")
 
-    # For other commands, install wrapper exec scripts with `p9-` prepended to their names
-    commands = installdir.glob("bin/**/*")
-                         .reject { |f| f.directory? || f.basename == "9" }
-                         .select { |f| f.text_executable? || f.binary_executable? }
-    commands.each do |cmd|
-      script_name = cmd.basename.to_s
-      script_name.prepend "p9-" unless script_name.include?('"') # keep `"` and `""` as is
-      (bin/script_name).atomic_write <<~SH
-        #!/bin/sh
-
-        PLAN9=#{opt_installdir} export PLAN9
-
-        case "$PATH" in
-        $PLAN9/bin:*)
-          ;;
-        *)
-          PATH="$PLAN9/bin:$PATH" export PATH
-          ;;
-        esac
-
-        exec '#{cmd}' "$@"
-      SH
-    end
-
-    # Symlink man pages as their `p9-`-prefixed names
-    installdir.glob("man/man*/*").each do |f|
-      link_name = f.basename.to_s
-      link_name.prepend "p9-" unless ["INDEX", "index.html"].include? link_name
-      (man/f.dirname.basename).install_symlink f => link_name
-    end
-
-    # Move other installed files to appropriate locations
-    prefix.install installdir.glob("{CHANGES,LICENSE,README.md}")
-    (prefix/"Applications").install installdir.glob("mac/*.app") if OS.mac?
-
-    # Clean up leftovers and byproducts
-    rm_r installdir/"mac"
-    rm installdir/"INSTALL"
-    rm installdir.glob("install.{log,sum,txt}")
+    # Install
+    libexec.install buildpath.glob("*")
+    bin.install_symlink libexec/"bin/9"
   end
 
   def caveats
     <<~EOS
-      In order not to collide with system binaries, the Plan 9 binaries have not
-      been installed to the Homebrew prefix directory as is, but instead have
-      been installed into #{Formatter.url (opt_installdir/"bin").to_s}
-      and symlinked into the Homebrew prefix bin with `p9-` prepended to
-      their names.  Likewise, the Plan 9 man pages have also been symlinked into
-      the Homebrew man prefix with `p9-`-prefixed names.
+      Run the following and add it to your shell profile, e.g. ~/.zprofile or ~/.profile:
+        export PLAN9="#{opt_libexec}"
 
-      Several of the installed tools expect other Plan 9 binaries to be
-      available in PATH.  The `9` command can be used to adjust the PATH on the
-      fly and use the original names of the binaries.  Hence, to run the Plan 9
-      version of a command, simply prefix it with `9 `, like so:
+      In order to not collide with binaries, man pages, libraries, and include files
+      installed by other packages, the plan9port distribution is installed under this
+      PLAN9 directory instead of #{opt_prefix}, which means they
+      have not been symlinked into the usual locations under #{HOMEBREW_PREFIX}
+
+      As an exception, the `9` exec script has been symlinked into #{opt_bin},
+      so it is available in PATH.  It sets PLAN9 and adds `$PLAN9/bin` to PATH, as many
+      plan9port tools require, before `exec`ing the rest of the command line, and is
+      thus the recommended way to run plan9port programs, e.g.:
         # 9 ls
 
-      If instead you want the unprefixed versions always available in your PATH,
-      add the following to your shell's startup file:
-
-        export PLAN9=#{Formatter.url opt_installdir.to_s}
+      If you need to have plan9port binaries and man pages first in your PATH, set:
+        export PLAN9="#{opt_libexec}"
         export PATH="$PATH:$PLAN9/bin"
         export MANPATH="$MANPATH:$PLAN9/man"
+
+      For compilers to find plan9port libraries you may need to set:
+        export PLAN9="#{opt_libexec}"
+        export LDFLAGS="-L$PLAN9/lib"
+        export CPPFLAGS="-I$PLAN9/include"
     EOS
   end
 
   test do
+    system bin/"9", "man", "plumb"
+    assert_match " Plan 9 ", shell_output("#{bin}/9 man ls")
+
     (testpath/"test.c").write <<~'C'
-      #include <u.h>
-      #include <libc.h>
       #include <stdio.h>
 
       int main(void)
       {
-        return printf("Hello World\n");
+        return 12 != printf("Hello World\n");
       }
     C
-
     system bin/"9", "9c", "test.c"
     system bin/"9", "9l", "-o", "test", "test.o"
-    assert_equal "Hello World\n", shell_output("./test", 1)
-
-    # Also test that the `p9-`-prefixed commands work
-    system bin/"p9-rm", "test.o", "test"
-    system bin/"p9-9c", "test.c"
-    system bin/"p9-9l", "-o", "test", "test.o"
-    assert_equal "Hello World\n", shell_output("./test", 1)
+    assert_equal "Hello World\n", shell_output("./test")
   end
 end

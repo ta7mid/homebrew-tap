@@ -1,6 +1,6 @@
 cask "9term" do
-  version "2025.11.09-f39a240"
-  sha256 "2bf42e0a4bba5334f1155a1153982a7e59a5fcdbac6f9684cc6255c856da9238"
+  version "2026.02.27-ae4fdf4"
+  sha256 "8ae2830dadd2b94274301b59ab2319755def657530b4bbcd6080ad77fa22716e"
 
   url "https://codeload.github.com/9fans/plan9port/tar.gz/#{version.split("-").last}",
       verified: "https://codeload.github.com/9fans/plan9port/"

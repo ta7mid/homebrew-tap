@@ -7,6 +7,16 @@ class Plan9port < Formula
   license "MIT"
   head "https://github.com/9fans/plan9port.git", branch: "master"
 
+  livecheck do
+    url "https://api.github.com/repos/9fans/plan9port/branches/master"
+    strategy :json do |json|
+      commit = json["commit"]
+      sha = commit["sha"]
+      date = commit.dig("commit", "author", "date")
+      "#{DateTime.parse(date).strftime("%Y.%m.%d")}-#{sha[0, 7]}"
+    end
+  end
+
   def install
     prefix.install_metafiles
 

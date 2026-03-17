@@ -1,8 +1,9 @@
 cask "focus-editor" do
-  version "0.3.7"
-  sha256 "539ea4f427bd59107036c2e263e7cb67864741993d46f2a0bd8feb10a03b4dda"
+  version "0.3.8"
+  sha256 "56883831e607892c050325e17b8b354fda69a538111bc2b84f7ad3b8bccb3db0"
 
-  url "https://github.com/focus-editor/focus/releases/download/#{version}/focus-macOS.dmg"
+  url "https://github.com/focus-editor/focus/releases/download/#{version}/focus-macOS.dmg",
+      verified: "github.com/focus-editor/focus"
   name "Focus"
   desc "Simple and fast text editor"
   homepage "https://focus-editor.dev"
@@ -16,4 +17,8 @@ cask "focus-editor" do
   binary "Focus.app/Contents/MacOS/Focus"
 
   zap trash: "~/Library/Application Support/dev.focus-editor"
+
+  caveats do
+    requires_rosetta
+  end
 end

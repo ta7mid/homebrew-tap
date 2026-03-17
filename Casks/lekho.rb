@@ -18,7 +18,6 @@ cask "lekho" do
   pkg "Install Lekho.pkg"
 
   uninstall quit:    "com.lekho.inputmethod.Lekho",
-            pkgutil: "com.lekho.inputmethod.Lekho",
             delete:  [
               "/Applications/Lekho.app",
               "~/Library/Input Methods/Lekho.app",

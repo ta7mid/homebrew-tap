@@ -2,9 +2,10 @@ cask "9term" do
   version "2025.11.09-f39a240"
   sha256 "2bf42e0a4bba5334f1155a1153982a7e59a5fcdbac6f9684cc6255c856da9238"
 
-  url "https://codeload.github.com/9fans/plan9port/tar.gz/#{version.split("-").last}"
+  url "https://codeload.github.com/9fans/plan9port/tar.gz/#{version.split("-").last}",
+      verified: "https://codeload.github.com/9fans/plan9port/"
   name "9term"
-  desc "Terminal emulator providing an interface similar to that used on Plan 9"
+  desc "Plan 9-style terminal emulator for Unix"
   homepage "https://9fans.github.io/plan9port/"
 
   livecheck do
@@ -13,14 +14,29 @@ cask "9term" do
 
   depends_on formula: "plan9port"
 
+  preflight do
+    launcher = staged_path/"plan9port-#{version.split("-").last}/mac/9term.app/Contents/MacOS/9term"
+    original = 'PLAN9=${PLAN9:-/usr/local/plan9}'
+    replacement = 'PLAN9=${PLAN9:-' + Formula["plan9port"].opt_libexec.to_s + '}'
+    content = launcher.read
+
+    raise CaskError, "Unexpected 9term launcher format" unless content.include?(original)
+
+    launcher.write(content.sub(original, replacement))
+    launcher.chmod(0755)
+  end
+
   app "plan9port-#{version.split("-").last}/mac/9term.app"
 
-  zap trash: ""
+  zap trash: [
+    "~/Library/Preferences/com.swtch.9term.plist",
+    "~/Library/Saved Application State/com.swtch.9term.savedState",
+  ]
 
   caveats <<~EOS
-    To use 9term, you will need to set the the PLAN9 environment
-    variable to the path of the `libexec` subdirectory under the
-    plan9port installation prefix, e.g. (for Bash shell):
+    9term.app is patched to use Homebrew's plan9port installation automatically.
+
+    If you want to use plan9port tools directly from your shell, add:
       export PLAN9="$(brew --prefix plan9port)/libexec"
   EOS
 end

@@ -3,7 +3,7 @@ cask "plumb" do
   sha256 "8ae2830dadd2b94274301b59ab2319755def657530b4bbcd6080ad77fa22716e"
 
   url "https://codeload.github.com/9fans/plan9port/tar.gz/#{version.split("-").last}",
-      verified: "codeload.github.com/9fans/plan9port/"
+      verified: "github.com/9fans/plan9port/"
   name "Plumb"
   desc "GUI client for sending messages to Plan 9 plumbers"
   homepage "https://9fans.github.io/plan9port/"

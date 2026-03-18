@@ -3,7 +3,7 @@ cask "postview" do
   sha256 "8b1006b812fd9645ee5ba53c3798991cc6c73b88e525d6968c77749a60eb9678"
 
   url "https://web.archive.org/web/20180818013748if_/https://metaobject.com/downloads/Products/PostView/PostView-#{version}.dmg",
-      verified: "web.archive.org/web/20180818013748if_/https://metaobject.com/downloads/Products/PostView/"
+      verified: "archive.org/web/20180818013748if_/https://metaobject.com/"
   name "PostView"
   desc "Viewer for PDF, PostScript and image files"
   homepage "https://www.metaobject.com/Products/"

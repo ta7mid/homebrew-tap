@@ -1,8 +1,8 @@
 cask "9term" do
-  version "2026.02.27-ae4fdf4"
+  version "2026-02-27,ae4fdf4"
   sha256 "8ae2830dadd2b94274301b59ab2319755def657530b4bbcd6080ad77fa22716e"
 
-  url "https://codeload.github.com/9fans/plan9port/tar.gz/#{version.split("-").last}",
+  url "https://codeload.github.com/9fans/plan9port/tar.gz/#{version.csv.second}",
       verified: "github.com/9fans/plan9port/"
   name "9term"
   desc "Plan 9-style terminal emulator for Unix"
@@ -14,10 +14,10 @@ cask "9term" do
 
   depends_on formula: "plan9port"
 
-  app "plan9port-#{version.split("-").last}/mac/9term.app"
+  app "plan9port-#{version.csv.second}/mac/9term.app"
 
   preflight do
-    launcher = staged_path/"plan9port-#{version.split("-").last}/mac/9term.app/Contents/MacOS/9term"
+    launcher = staged_path/"plan9port-#{version.csv.second}/mac/9term.app/Contents/MacOS/9term"
     original = "PLAN9=${PLAN9:-/usr/local/plan9}"
     replacement = "PLAN9=${PLAN9:-#{Formula["plan9port"].opt_libexec}}"
     content = launcher.read

@@ -1,47 +1,26 @@
 class Plan9port < Formula
-  desc "Port of many Plan 9 programs and libraries to Unix"
+  desc "Port of many Plan 9 libraries and programs to Unix"
   homepage "https://9fans.github.io/plan9port/"
-  url "https://github.com/9fans/plan9port/archive/ae4fdf4.tar.gz"
-  version "2026-02-27,ae4fdf4"
-  sha256 "2423069d2be70ba426096c9eaa57884b5b0ce75edac3f7a62d6c1c2e77e67cb2"
   license "MIT"
   head "https://github.com/9fans/plan9port.git", branch: "master"
 
-  livecheck do
-    url "https://api.github.com/repos/9fans/plan9port/branches/master"
-    strategy :json do |json|
-      commit = json["commit"]
-      sha = commit["sha"]
-      date = commit["commit"]["author"]["date"]
-      "#{date[...10]},#{sha[...7]}"
-    end
+  on_linux do
+    depends_on "fontconfig"
+    depends_on "libx11"
+    depends_on "libxext"
+    depends_on "libxt"
   end
 
   def install
     prefix.install_metafiles
 
-    # Fix the hardcoded default install prefix in source files
-    # https://gitlab.archlinux.org/archlinux/packaging/packages/plan9port/-/blob/7045c67c217a4b27af666ac48fe9f4997b6c18cc/PKGBUILD#L47
-    buildpath.glob("**/*").select { |f| f.file? && !f.binary_executable? }.each do |f|
-      inreplace f, "/usr/local/plan9", libexec.to_s, audit_result: false
-    end
+    # Build with libexec as $PLAN9.
+    system "./INSTALL", "-r", libexec
 
-    # Build
-    system "./INSTALL", "-r", libexec.to_s
-
-    # Remove files and folders in buildpath that shouldn't be installed.
-    # These are used for developing or building plan9port, not useful for end users.
-    rm_r %w[
-      .github
-      dist
-      lib/git
-      mac
-      news
-      proto
-      src
-      unix
-    ]
-    rm %w[
+    # Install only runtime and user-relevant files into libexec.
+    rm_r %w[.github dist mac src lib/git news proto unix]
+    rm Dir["**/.gitkeep"]
+    libexec.install Dir["*"] - %w[
       .gitignore
       CONTRIBUTING.md
       CONTRIBUTORS
@@ -52,55 +31,81 @@ class Plan9port < Formula
       install.sum
       install.txt
     ]
-    rm buildpath.glob("**/.gitkeep")
 
-    # Install
-    libexec.install buildpath.glob("*")
-    bin.install_symlink libexec/"bin/9"
+    # Surface the `9`/`u` scripts and their man page "9(1)".
+    bin.install_symlink %w[9 9.rc u u.rc].map { |f| libexec/"bin"/f }
+    man1.install_symlink libexec/"man/man1/9.1"
   end
 
   def caveats
     <<~EOS
-      Run the following and add it to your shell profile, e.g. ~/.zprofile or ~/.profile:
+      To avoid collisions with system and Homebrew commands, plan9port's
+      commands are installed under:
+        #{opt_libexec}/bin
+
+      To run a plan9port command, use the `9` wrapper installed in
+      #{opt_bin}, for example:
+        9 ls
+
+      NOTE: some shell configurations, notably oh-my-zsh, define `9` as an
+      alias for `cd -9`. If `9` is unavailable, unalias it in your shell
+      initialization.
+
+      If you want plan9port commands available in your PATH,
+      either source the `9` script:
+        . 9
+
+      or, equivalently, set:
         export PLAN9="#{opt_libexec}"
+        export PATH="$PLAN9/bin:$PATH"
 
-      In order to not collide with binaries, man pages, libraries, and include files
-      installed by other packages, the plan9port distribution is installed under this
-      PLAN9 directory instead of #{opt_prefix}, which means they
-      have not been symlinked into the usual locations under #{HOMEBREW_PREFIX}
+      To restore the system command search order while keeping PLAN9 set, use:
+        u <command>
 
-      As an exception, the `9` exec script has been symlinked into #{opt_bin},
-      so it is available in PATH.  It sets PLAN9 and adds `$PLAN9/bin` to PATH, as many
-      plan9port tools require, before `exec`ing the rest of the command line, and is
-      thus the recommended way to run plan9port programs, e.g.:
-        # 9 ls
+      See 9(1) for details about `9`, `u`, `. 9`, and `. u` (as well as their rc
+      counterparts):
+        man 1 9   # or `9 man 1 -- 9` to use plan9port's `man`
 
-      If you need to have plan9port binaries and man pages first in your PATH, set:
-        export PLAN9="#{opt_libexec}"
-        export PATH="$PATH:$PLAN9/bin"
+      To read plan9port man pages other than 9(1) with the system `man` command,
+      set:
         export MANPATH="$MANPATH:$PLAN9/man"
 
       For compilers to find plan9port libraries you may need to set:
-        export PLAN9="#{opt_libexec}"
         export LDFLAGS="-L$PLAN9/lib"
         export CPPFLAGS="-I$PLAN9/include"
     EOS
   end
 
   test do
-    system bin/"9", "man", "plumb"
-    assert_match " Plan 9 ", shell_output("#{bin}/9 man ls")
+    nine = bin/"9"
 
+    # Verify installed scripts reference the correct $PLAN9 path.
+    assert_match libexec.to_s, nine.read
+    bin.glob("**/*").each do |f|
+      refute_match "/usr/local/plan9", f.read
+    end
+
+    # Check surfaced scripts and man pages.
+    refute_match "plan9port", shell_output("man ls")
+    assert_match "plan9port", shell_output(". #{nine} && man ls")
+    system "man", "1", "9"
+    refute_match(/[Nn]o manual/, shell_output("#{nine} man u u.rc 9 9.rc"))
+    system nine, "rc", "-c", "venti/verifyarena </dev/null"
+
+    # Compile and run a minimal lib9 program.
     (testpath/"test.c").write <<~'C'
-      #include <stdio.h>
+      #include <u.h>
+      #include <libc.h>
 
-      int main(void)
+      void
+      main(void)
       {
-        return 12 != printf("Hello World\n");
+        print("Hello from lib9\n");
+        exits(nil);
       }
     C
-    system bin/"9", "9c", "test.c"
-    system bin/"9", "9l", "-o", "test", "test.o"
-    assert_equal "Hello World\n", shell_output("./test")
+    system nine, "9c", "test.c"
+    system nine, "9l", "-o", "test", "test.o"
+    assert_equal "Hello from lib9\n", shell_output("./test")
   end
 end

@@ -1,4 +1,4 @@
-cask "plan9port" do
+cask "plan9port-apps" do
   version :latest
   sha256 :no_check
 

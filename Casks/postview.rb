@@ -10,8 +10,7 @@ cask "postview" do
 
   livecheck do
     url :homepage
-    regex(/Current version: (\d+(?:\.\d+)+): <a href="[^"]*PostView-\d+(?:\.\d+)+.dmg/i)
-    strategy :page_match
+    regex(/Current version: (\d+(?:\.\d+)+): <a href="[^">]*?PostView[._-]v?\d+(?:\.\d+)+\.dmg/i)
   end
 
   app "PostView.app"

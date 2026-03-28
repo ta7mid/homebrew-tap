@@ -18,18 +18,25 @@ class Plan9port < Formula
     system "./INSTALL", "-r", libexec
 
     # Install only runtime and user-relevant files into libexec.
-    rm_r %w[.github dist mac src lib/git news proto unix]
+    rm_r "lib/git"
     rm Dir["**/.gitkeep"]
     libexec.install Dir["*"] - %w[
+      .github
       .gitignore
       CONTRIBUTING.md
       CONTRIBUTORS
       INSTALL
       Makefile
       configure
+      dist
       install.log
       install.sum
       install.txt
+      mac
+      news
+      proto
+      src
+      unix
     ]
 
     # Surface the `9`/`u` scripts and their man page "9(1)".

@@ -5,7 +5,7 @@ cask "mathmagic-lite" do
   url "http://www.mathmagic.com/download/installers/MathMagicLite.64-bit.zip"
   name "MathMagic Lite"
   desc "Editor and format converter for mathematical expressions"
-  homepage "http://www.mathmagic.com/"
+  homepage "http://www.mathmagic.com/product/lite.html"
 
   livecheck do
     url "http://www.mathmagic.com/download/download.html"
